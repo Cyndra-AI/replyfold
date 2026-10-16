@@ -1,0 +1,8 @@
+node_modules/
+data/
+*.sqlite
+*.sqlite-*
+.env
+.env.local
+src/web/dist.css
+coverage/
