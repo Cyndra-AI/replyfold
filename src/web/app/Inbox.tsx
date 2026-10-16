@@ -1,4 +1,4 @@
-import { AlertTriangleIcon, InboxIcon, ListFilterIcon, MenuIcon, RefreshCwIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, InboxIcon, ListFilterIcon, RefreshCwIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type InboxResponse, type InboxRow, type MailboxesResponse } from "../lib/api";
 import { MOOD_LABELS, relativeTime, VIEW_LABELS } from "../lib/format";
@@ -7,11 +7,11 @@ import { invalidate, useResource } from "../lib/resource";
 import { Link, navigate } from "../lib/router";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
-import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from "../ui/menu";
+import { Menu, MenuGroup, MenuGroupLabel, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "../ui/menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Skeleton } from "../ui/skeleton";
 import { Spinner } from "../ui/spinner";
-import { Hint, Hotkey, MoodTag, Person } from "./common";
+import { Hint, Hotkey, MobileNav, MoodTag, Person } from "./common";
 import { Reader } from "./Reader";
 
 function DraftMark({ draft }: { draft: InboxRow["draft"] }) {
@@ -68,6 +68,7 @@ function Row({ row, selected, view, names }: { row: InboxRow; selected: boolean;
           <span className={cn("min-w-0 flex-1 truncate text-sm", row.unread ? "font-semibold" : "font-medium text-foreground/88")}>
             {row.customer.name || row.customer.email}
           </span>
+          <MoodTag mood={row.mood} />
           {assignee ? <Person name={assignee} seed={row.assigneeId!} size="xs" /> : null}
           <time className="tabular shrink-0 text-muted-foreground text-xs" dateTime={row.lastMessageAt}>
             {relativeTime(row.lastMessageAt)}
@@ -78,7 +79,6 @@ function Row({ row, selected, view, names }: { row: InboxRow; selected: boolean;
             <span className="text-foreground/80">{row.subject}</span>
             <span className="text-muted-foreground/80"> {row.snippet}</span>
           </span>
-          <MoodTag mood={row.mood} />
           <DraftMark draft={row.draft} />
         </span>
       </span>
@@ -158,23 +158,7 @@ export function Inbox({ view, conversationId }: { view: string; conversationId: 
     <div className="flex min-h-0 flex-1">
       <section className={cn("flex w-full min-w-0 flex-col border-r bg-canvas lg:w-[25rem] lg:shrink-0", conversationId && "hidden lg:flex")} aria-label="Conversations">
         <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
-          <Menu>
-            <MenuTrigger render={<Button variant="ghost" size="icon-xs" className="md:hidden" aria-label="Menu" />}>
-              <MenuIcon />
-            </MenuTrigger>
-            <MenuPopup align="start" className="w-56">
-              {Object.entries(VIEW_LABELS).map(([key, label]) => (
-                <MenuItem key={key} onClick={() => navigate(`/inbox/${key}`)}>
-                  {label}
-                </MenuItem>
-              ))}
-              <MenuSeparator />
-              <MenuItem onClick={() => navigate("/compose")}>Write a new email</MenuItem>
-              <MenuItem onClick={() => navigate("/playbook")}>Playbook</MenuItem>
-              <MenuItem onClick={() => navigate("/insights")}>Insights</MenuItem>
-              <MenuItem onClick={() => navigate("/settings/mailboxes")}>Settings</MenuItem>
-            </MenuPopup>
-          </Menu>
+          <MobileNav />
           <h1 className="flex flex-1 items-baseline gap-2 font-medium text-[0.95rem]">
             {VIEW_LABELS[view] ?? "Inbox"}
             <span className="tabular font-normal text-muted-foreground text-xs">{inbox.data ? rows.length : ""}</span>

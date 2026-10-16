@@ -494,7 +494,19 @@ export function Settings({ section }: { section: "mailboxes" | "ai" | "team" | "
             .
           </p>
         </nav>
-        <div className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
+        <div className="min-w-0 flex-1 overflow-y-auto px-8 pb-10 max-md:px-4">
+          <nav className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 py-2 md:hidden" aria-label="Settings sections">
+            {SECTIONS.map((item) => (
+              <Link
+                key={item.id}
+                href={`/settings/${item.id}`}
+                aria-current={section === item.id ? "page" : undefined}
+                className={cn("shrink-0 rounded-md px-2.5 py-1.5 text-sm text-foreground/72", section === item.id && "bg-foreground/[0.06] font-medium text-foreground")}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
           <div className="max-w-4xl">
             {section === "mailboxes" ? <Mailboxes /> : null}
             {section === "ai" ? <AiSettingsSection /> : null}

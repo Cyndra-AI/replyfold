@@ -72,6 +72,15 @@
   .pressable:active {
     transform: scale(0.97);
   }
+  /* Every button answers a press. Disabled buttons stay still. */
+  [data-slot="button"] {
+    transition-property: color, background-color, border-color, box-shadow, transform;
+    transition-duration: 140ms;
+    transition-timing-function: var(--ease-out);
+  }
+  [data-slot="button"]:active:not(:disabled, [data-disabled]) {
+    transform: scale(0.97);
+  }
   .tabular {
     font-variant-numeric: tabular-nums;
   }

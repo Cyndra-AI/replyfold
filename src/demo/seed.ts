@@ -44,6 +44,9 @@ export async function seedDemo(store: Store, now = Date.now()) {
       messageIdHeader: `<${item.hint}-in@demo.fernhill.example>`,
       references: [],
     })!;
+    const tag = await new ModelClassifier(model).classify({ subject: item.subject, text: item.ask });
+    store.setMessageMood(inbound.id, tag.mood);
+    store.updateConversation(conversation.id, { mood: tag.mood });
     const draft = store.createDraft({ conversationId: conversation.id, forMessageId: inbound.id });
     store.updateDraft(draft.id, {
       state: "ready",

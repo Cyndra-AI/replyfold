@@ -1,4 +1,4 @@
-import type { Category, EditClass } from "./core/types";
+import type { Category, EditClass, Mood } from "./core/types";
 import type { Store } from "./db/store";
 
 export type Stats = {
@@ -11,6 +11,8 @@ export type Stats = {
   averageConfidence: number | null;
   daily: Array<{ date: string; received: number; sent: number }>;
   categories: Array<{ category: Category; count: number }>;
+  /** Customer emails per mood. Emails that were never classified are left out. */
+  moods: Array<{ mood: Mood; count: number }>;
   people: Array<{ userId: string; name: string; sent: number; unchanged: number; light: number; heavy: number }>;
 };
 
@@ -77,6 +79,13 @@ export function computeStats(store: Store, range: { from: string; to: string }):
     )
     .all(from, to) as Array<{ category: Category; count: number }>;
 
+  const moods = db
+    .query(
+      `SELECT mood, count(*) AS count FROM messages WHERE direction = 'inbound' AND mood IS NOT NULL AND sent_at >= ? AND sent_at <= ?
+       GROUP BY mood ORDER BY count DESC`,
+    )
+    .all(from, to) as Stats["moods"];
+
   const people = db
     .query(
       `SELECT users.id AS userId, users.name AS name, count(sends.id) AS sent,
@@ -97,6 +106,7 @@ export function computeStats(store: Store, range: { from: string; to: string }):
     averageConfidence: confidence.value,
     daily,
     categories,
+    moods,
     people: people.map((person) => ({
       ...person,
       unchanged: person.unchanged ?? 0,

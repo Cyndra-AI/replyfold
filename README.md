@@ -93,7 +93,7 @@ You can still set the model in `.env` with `MODEL_PROVIDER` (`codex` or `openai`
 
 ### Classification and customer mood
 
-Before each draft, Replyfold tags the email with a case type and the customer's mood: happy, calm, confused, worried, frustrated or angry. The inbox and the thread show the mood. The filter button above the list shows one mood at a time.
+Before each draft, Replyfold tags the email with a case type and the customer's mood: happy, calm, confused, worried, frustrated or angry. The inbox and the thread show the mood. The filter button above the list shows one mood at a time. **Insights** counts the emails per mood.
 
 ![The classification settings with Jev turned on and a test result](docs/screenshots/classification.png)
 
@@ -136,7 +136,7 @@ On the first sync, Replyfold reads the last 14 days of mail.
 | | |
 |---|---|
 | ![A draft that needs review, with the analysis open](docs/screenshots/draft-review.png) | ![The inbox in dark mode](docs/screenshots/inbox-dark.png) |
-| ![Reply volume, edit quality, topics and replies per person](docs/screenshots/insights.png) | ![The playbook editor with a learned suggestion](docs/screenshots/playbook.png) |
+| ![Reply volume, edit quality, topics, customer mood and replies per person](docs/screenshots/insights.png) | ![The playbook editor with a learned suggestion](docs/screenshots/playbook.png) |
 | ![Connecting Gmail, Microsoft 365 or an IMAP mailbox](docs/screenshots/mailboxes.png) | ![The command menu searching conversations](docs/screenshots/command-menu.png) |
 | ![Writing a new email](docs/screenshots/compose.png) | ![The reader on a phone](docs/screenshots/phone.png) |
 | ![Filtering the inbox by customer mood](docs/screenshots/mood-filter.png) | |
