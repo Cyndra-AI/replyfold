@@ -44,6 +44,7 @@ describe("computeStats", () => {
         references: [],
       })!;
       store.updateConversation(conversation.id, { category: "shipping" });
+      if (index === 0) store.setMessageMood(message.id, "worried");
       const draft = store.createDraft({ conversationId: conversation.id, forMessageId: message.id });
       store.updateDraft(draft.id, { state: "ready", body: "Thanks, it shipped today." });
       await sendReply({ store, providerFor: () => provider, user: store.user(user.id)!, conversationId: conversation.id, draftId: draft.id, body, key: `k${index}` });
@@ -55,6 +56,7 @@ describe("computeStats", () => {
     expect(stats.edits).toEqual({ unchanged: 1, light: 0, heavy: 1, manual: 0 });
     expect(stats.people).toEqual([{ userId: user.id, name: "Kim", sent: 2, unchanged: 1, light: 0, heavy: 1 }]);
     expect(stats.categories).toEqual([{ category: "shipping", count: 2 }]);
+    expect(stats.moods).toEqual([{ mood: "worried", count: 1 }]);
     expect(stats.medianFirstResponseMinutes).toBeGreaterThan(89);
     expect(stats.medianFirstResponseMinutes).toBeLessThan(91);
     expect(stats.daily.length).toBeGreaterThanOrEqual(3);

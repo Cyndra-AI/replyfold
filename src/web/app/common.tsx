@@ -1,8 +1,13 @@
+import { MenuIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { User } from "../lib/api";
-import { initials, MOOD_LABELS } from "../lib/format";
+import { initials, MOOD_LABELS, VIEW_LABELS } from "../lib/format";
 import { keyLabel } from "../lib/keys";
+import { navigate } from "../lib/router";
 import { cn } from "../lib/utils";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
 import { Kbd, KbdGroup } from "../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
@@ -56,14 +61,38 @@ export function Hint({ label, keys, children }: { label: string; keys?: string; 
   );
 }
 
+/** The phone menu. The sidebar is hidden below 768px, so every page header carries this button there. */
+export function MobileNav() {
+  return (
+    <Menu>
+      <MenuTrigger render={<Button variant="ghost" size="icon-xs" className="-ms-1 md:hidden" aria-label="Menu" />}>
+        <MenuIcon />
+      </MenuTrigger>
+      <MenuPopup align="start" className="w-56">
+        {Object.entries(VIEW_LABELS).map(([key, label]) => (
+          <MenuItem key={key} onClick={() => navigate(`/inbox/${key}`)}>
+            {label}
+          </MenuItem>
+        ))}
+        <MenuSeparator />
+        <MenuItem onClick={() => navigate("/compose")}>Write a new email</MenuItem>
+        <MenuItem onClick={() => navigate("/playbook")}>Playbook</MenuItem>
+        <MenuItem onClick={() => navigate("/insights")}>Insights</MenuItem>
+        <MenuItem onClick={() => navigate("/settings/mailboxes")}>Settings</MenuItem>
+      </MenuPopup>
+    </Menu>
+  );
+}
+
 export function PageHeader({ title, children, description }: { title: string; description?: string; children?: ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b px-5">
-      <div className="flex min-w-0 items-baseline gap-3">
-        <h1 className="truncate font-medium text-[0.95rem]">{title}</h1>
-        {description ? <p className="truncate text-muted-foreground text-sm">{description}</p> : null}
+    <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b px-5 max-md:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileNav />
+        <h1 className="shrink-0 font-medium text-[0.95rem]">{title}</h1>
+        {description ? <p className="truncate text-muted-foreground text-sm max-md:hidden">{description}</p> : null}
       </div>
-      <div className="flex items-center gap-2">{children}</div>
+      <div className="flex min-w-0 items-center gap-2">{children}</div>
     </header>
   );
 }
@@ -77,7 +106,7 @@ const MOOD_TONES: Record<string, string> = {
   happy: "bg-success",
   calm: "bg-muted-foreground/45",
   confused: "bg-info",
-  worried: "bg-warning",
+  worried: "bg-[oklch(0.6_0.15_300)] dark:bg-[oklch(0.72_0.13_300)]",
   frustrated: "bg-[oklch(0.68_0.16_50)]",
   angry: "bg-destructive",
 };
@@ -90,5 +119,16 @@ export function MoodTag({ mood, className }: { mood: string | null | undefined; 
       <span className={cn("size-1.5 rounded-full", MOOD_TONES[mood])} aria-hidden="true" />
       {MOOD_LABELS[mood]}
     </span>
+  );
+}
+
+/** The mood as a chip, sized like the category chip next to it. */
+export function MoodBadge({ mood }: { mood: string | null | undefined }) {
+  if (!mood || !MOOD_LABELS[mood]) return null;
+  return (
+    <Badge variant="outline" size="sm" title={`Customer mood: ${MOOD_LABELS[mood]}`}>
+      <span className={cn("size-1.5 rounded-full", MOOD_TONES[mood])} aria-hidden="true" />
+      {MOOD_LABELS[mood]}
+    </Badge>
   );
 }

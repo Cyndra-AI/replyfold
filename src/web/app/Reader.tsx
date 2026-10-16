@@ -11,7 +11,7 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuRadioGroup, M
 import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { useSession } from "./App";
-import { Hint, MoodTag, Person } from "./common";
+import { Hint, MoodBadge, MoodTag, Person } from "./common";
 import { Composer } from "./Composer";
 
 const STATUS_LABELS: Record<ConversationStatus, string> = { open: "Open", waiting: "Waiting on customer", closed: "Closed" };
@@ -184,11 +184,7 @@ export function Reader({ conversationId, view, onRemoved }: { conversationId: st
           <Badge variant="outline" size="sm">
             {CATEGORY_LABELS[conversation.category]}
           </Badge>
-          {conversation.mood ? (
-            <Badge variant="outline" size="sm">
-              <MoodTag mood={conversation.mood} className="text-foreground text-[inherit]" />
-            </Badge>
-          ) : null}
+          <MoodBadge mood={conversation.mood} />
           {data.reminders
             .filter((reminder) => !reminder.doneAt)
             .map((reminder) => (

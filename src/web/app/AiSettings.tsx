@@ -15,7 +15,7 @@ import { Spinner } from "../ui/spinner";
 import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
 import { useSession } from "./App";
-import { MoodTag } from "./common";
+import { MoodBadge } from "./common";
 
 const PATH = "/api/ai";
 
@@ -92,32 +92,30 @@ function ActiveModel({ data, owner }: { data: AiResponse; owner: boolean }) {
   return (
     <Block title="Model for drafts" description="Replyfold writes every draft with this model. Each provider bills your own account.">
       <div className="flex flex-col gap-4 rounded-lg border p-4">
-        <p className="flex flex-wrap items-center gap-2 text-sm">
-          {current ? (
-            <>
-              <CheckCircle2Icon className="size-4 text-success" />
-              Drafts use <span className="font-medium">{current.model}</span>
-              <span className="text-muted-foreground">from {providerLabel(data, current.kind)}.</span>
-              {current.kind === "chatgpt" ? (
-                <Badge variant="info" size="sm">
-                  Using ChatGPT plan
-                </Badge>
-              ) : null}
-              {current.kind === "chatgpt" ? <UsageLink url={data.chatgpt.usageUrl} /> : null}
-            </>
-          ) : data.env ? (
-            <>
-              <CheckCircle2Icon className="size-4 text-success" />
-              Drafts use <span className="font-medium">{data.env.name}</span>
-              <span className="text-muted-foreground">from the server's .env file. Pick a provider below to switch.</span>
-            </>
-          ) : (
-            <>
-              <CircleAlertIcon className="size-4 text-warning-foreground" />
-              No model yet. Connect ChatGPT or add an API key below, then pick a model here.
-            </>
-          )}
-        </p>
+        <div className="flex items-start gap-2 text-sm">
+          {current || data.env ? <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-success" /> : <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-warning-foreground" />}
+          <p className="min-w-0 flex-1">
+            {current ? (
+              <>
+                Drafts use <span className="font-medium">{current.model}</span> <span className="text-muted-foreground">from {providerLabel(data, current.kind)}.</span>
+                {current.kind === "chatgpt" ? (
+                  <span className="ms-2 inline-flex items-center gap-2 align-middle">
+                    <Badge variant="info" size="sm">
+                      Using ChatGPT plan
+                    </Badge>
+                    <UsageLink url={data.chatgpt.usageUrl} />
+                  </span>
+                ) : null}
+              </>
+            ) : data.env ? (
+              <>
+                Drafts use <span className="font-medium">{data.env.name}</span> <span className="text-muted-foreground">from the server's .env file. Pick a provider below to switch.</span>
+              </>
+            ) : (
+              "No model yet. Connect ChatGPT or add an API key below, then pick a model here."
+            )}
+          </p>
+        </div>
         {owner && choices.length ? (
           <div className="grid gap-3 sm:grid-cols-[12rem_1fr_auto] sm:items-end">
             <Field>
@@ -487,9 +485,7 @@ function Classification({ data, owner, openKey }: { data: AiResponse; owner: boo
                   <Badge variant="outline" size="sm">
                     {CATEGORY_LABELS[result.category] ?? result.category}
                   </Badge>
-                  <Badge variant="outline" size="sm">
-                    <MoodTag mood={result.mood} className="text-foreground text-[inherit]" />
-                  </Badge>
+                  <MoodBadge mood={result.mood} />
                   <span className="text-muted-foreground text-xs">
                     {result.model}, {(result.ms / 1000).toFixed(1)} s
                   </span>

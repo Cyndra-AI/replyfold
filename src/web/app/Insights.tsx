@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Stats } from "../lib/api";
 import { CATEGORY_LABELS, formatMinutes } from "../lib/format";
 import { useResource } from "../lib/resource";
 import { cn } from "../lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { Tabs, TabsList, TabsTab } from "../ui/tabs";
-import { PageHeader, Person } from "./common";
+import { MoodTag, PageHeader, Person } from "./common";
 
 const SERIES = {
   received: { label: "Received", className: "fill-[#5B8FE0] dark:fill-[#5A88D8]", swatch: "bg-[#5B8FE0] dark:bg-[#5A88D8]" },
@@ -29,20 +29,38 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
   );
 }
 
+/** The element's width in CSS pixels, so the chart draws at 1:1 and its 10px labels stay 10px on a phone. */
+function useWidth<T extends HTMLElement>(fallback: number) {
+  const ref = useRef<T>(null);
+  const [width, setWidth] = useState(fallback);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => entry && setWidth(Math.max(240, Math.round(entry.contentRect.width))));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width] as const;
+}
+
 function DailyChart({ daily }: { daily: Stats["daily"] }) {
   const [hover, setHover] = useState<number | null>(null);
-  const width = 720;
+  const [ref, width] = useWidth<HTMLElement>(720);
   const height = 180;
   const top = 12;
   const bottom = 24;
   const max = Math.max(4, ...daily.flatMap((day) => [day.received, day.sent]));
-  const step = width / daily.length;
+  // Room on the left for the axis numbers, so the first bar never covers them.
+  const left = 22;
+  const step = (width - left) / daily.length;
   const bar = Math.max(3, Math.min(14, step / 2 - 4));
   const y = (value: number) => top + (height - top - bottom) * (1 - value / max);
   const ticks = [0, Math.round(max / 2), max];
+  // About one date label per 80px, counted back from today so the last day always has one.
+  const every = Math.max(1, Math.ceil(daily.length / Math.max(2, Math.floor(width / 80))));
   const active = hover === null ? null : daily[hover];
   return (
-    <figure className="relative">
+    <figure ref={ref} className="relative">
       <figcaption className="mb-3 flex items-center justify-between">
         <span className="font-medium text-sm">Mail per day</span>
         <span className="flex items-center gap-4 text-muted-foreground text-xs">
@@ -57,18 +75,18 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Mail received and sent per day">
         {ticks.map((tick) => (
           <g key={tick}>
-            <line x1={0} x2={width} y1={y(tick)} y2={y(tick)} className="stroke-border" strokeWidth={1} />
-            <text x={0} y={y(tick) - 3} className="fill-muted-foreground text-[10px]">
+            <line x1={left} x2={width} y1={y(tick)} y2={y(tick)} className="stroke-border" strokeWidth={1} />
+            <text x={left - 6} y={y(tick) + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">
               {tick}
             </text>
           </g>
         ))}
         {daily.map((day, index) => {
-          const center = step * index + step / 2;
+          const center = left + step * index + step / 2;
           const label = new Date(`${day.date}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
           return (
             <g key={day.date} onMouseEnter={() => setHover(index)} onMouseLeave={() => setHover(null)}>
-              <rect x={step * index} y={0} width={step} height={height} className={cn("fill-transparent", hover === index && "fill-foreground/[0.035]")} />
+              <rect x={left + step * index} y={0} width={step} height={height} className={cn("fill-transparent", hover === index && "fill-foreground/[0.035]")} />
               {(["received", "sent"] as const).map((key, offset) => {
                 const value = day[key];
                 const x = center - bar - 1 + offset * (bar + 2);
@@ -76,7 +94,7 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
                 const h = y(0) - barTop;
                 return value ? <path key={key} d={`M${x},${y(0)} V${barTop + 2} Q${x},${barTop} ${x + 2},${barTop} H${x + bar - 2} Q${x + bar},${barTop} ${x + bar},${barTop + 2} V${y(0)} Z`} className={SERIES[key].className} opacity={h > 0 ? 1 : 0} /> : null;
               })}
-              {index % Math.ceil(daily.length / 7) === 0 || index === daily.length - 1 ? (
+              {(daily.length - 1 - index) % every === 0 ? (
                 <text x={center} y={height - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
                   {label}
                 </text>
@@ -88,7 +106,7 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
       {active && hover !== null ? (
         <div
           className="pointer-events-none absolute top-8 z-10 rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md/5"
-          style={{ left: `clamp(0px, calc(${((hover + 0.5) / daily.length) * 100}% - 4rem), calc(100% - 8rem))` }}
+          style={{ left: `clamp(0px, calc(${left}px + ${((hover + 0.5) / daily.length) * 100}% - 4rem), calc(100% - 8rem))` }}
         >
           <p className="font-medium">{new Date(`${active.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
           <p className="tabular text-muted-foreground">
@@ -131,12 +149,13 @@ export function Insights() {
   const data = stats.data;
   const drafted = data ? data.edits.unchanged + data.edits.light + data.edits.heavy : 0;
   const maxCategory = Math.max(1, ...(data?.categories.map((item) => item.count) ?? [1]));
+  const maxMood = Math.max(1, ...(data?.moods.map((item) => item.count) ?? [1]));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader title="Insights">
         <Tabs value={days} onValueChange={(value: string) => setDays(value)}>
-          <TabsList>
+          <TabsList className="max-sm:[&>*]:px-2 max-sm:[&>*]:text-xs">
             <TabsTab value="1">Today</TabsTab>
             <TabsTab value="7">7 days</TabsTab>
             <TabsTab value="14">14 days</TabsTab>
@@ -163,7 +182,7 @@ export function Insights() {
               />
             </dl>
             <DailyChart daily={data.daily} />
-            <div className="grid gap-8 md:grid-cols-2">
+            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
               <EditQuality edits={data.edits} />
               <section>
                 <h2 className="mb-3 font-medium text-sm">What customers wrote about</h2>
@@ -178,6 +197,22 @@ export function Insights() {
                     </li>
                   ))}
                   {!data.categories.length ? <li className="text-muted-foreground text-sm">No customer email in this range.</li> : null}
+                </ul>
+              </section>
+              <section>
+                <h2 className="font-medium text-sm">How customers felt</h2>
+                <p className="mt-0.5 mb-3 text-muted-foreground text-xs">The mood of each customer email that was tagged.</p>
+                <ul className="flex flex-col gap-2">
+                  {data.moods.map((item) => (
+                    <li key={item.mood} className="grid grid-cols-[6rem_1fr_2rem] items-center gap-3 text-sm">
+                      <MoodTag mood={item.mood} className="text-muted-foreground text-sm" />
+                      <span className="h-1.5 rounded-full bg-muted">
+                        <span className="block h-full rounded-full bg-foreground/30" style={{ width: `${(item.count / maxMood) * 100}%` }} />
+                      </span>
+                      <span className="tabular text-right">{item.count}</span>
+                    </li>
+                  ))}
+                  {!data.moods.length ? <li className="text-muted-foreground text-sm">No tagged email in this range. Tagging starts once an AI model is set up.</li> : null}
                 </ul>
               </section>
             </div>
