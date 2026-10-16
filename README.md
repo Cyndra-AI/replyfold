@@ -35,7 +35,7 @@ Sends are safe to retry. Each send has a key, so a double click sends once. If t
 The demo uses a made-up shop, made-up customers and a built-in model. It needs no mailbox, no API key and no Codex sign-in.
 
 ```bash
-git clone https://github.com/amrtawfik160/replyfold.git
+git clone https://github.com/Cyndra-AI/replyfold.git
 cd replyfold
 bun install
 bun run demo
