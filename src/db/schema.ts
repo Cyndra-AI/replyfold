@@ -1,4 +1,10 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+/** Columns added after the first release. Each runs once on a database that lacks it. */
+export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: string }> = [
+  { table: "conversations", column: "mood", definition: "TEXT" },
+  { table: "messages", column: "mood", definition: "TEXT" },
+];
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -41,7 +47,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   last_message_at TEXT NOT NULL,
   last_inbound_at TEXT,
   snippet TEXT NOT NULL DEFAULT '',
-  unread INTEGER NOT NULL DEFAULT 1
+  unread INTEGER NOT NULL DEFAULT 1,
+  mood TEXT
 );
 CREATE INDEX IF NOT EXISTS conversations_by_time ON conversations (status, last_message_at DESC);
 CREATE INDEX IF NOT EXISTS conversations_by_hint ON conversations (mailbox_id, thread_hint);
@@ -61,6 +68,7 @@ CREATE TABLE IF NOT EXISTS messages (
   message_id_header TEXT NOT NULL,
   references_json TEXT NOT NULL,
   sent_by_user_id TEXT,
+  mood TEXT,
   UNIQUE (mailbox_id, external_id)
 );
 CREATE INDEX IF NOT EXISTS messages_by_conversation ON messages (conversation_id, sent_at);

@@ -30,7 +30,7 @@ export type Route =
   | { page: "compose" }
   | { page: "playbook" }
   | { page: "insights" }
-  | { page: "settings"; section: "mailboxes" | "team" | "profile" };
+  | { page: "settings"; section: "mailboxes" | "ai" | "team" | "profile" };
 
 const VIEWS = new Set(["mine", "unassigned", "open", "waiting", "closed", "all"]);
 
@@ -41,7 +41,7 @@ export function parseRoute(path: string): Route {
   if (parts[0] === "playbook") return { page: "playbook" };
   if (parts[0] === "insights") return { page: "insights" };
   if (parts[0] === "settings") {
-    const section = parts[1] === "team" || parts[1] === "profile" ? parts[1] : "mailboxes";
+    const section = parts[1] === "team" || parts[1] === "profile" || parts[1] === "ai" ? parts[1] : "mailboxes";
     return { page: "settings", section };
   }
   const view = parts[0] === "inbox" && parts[1] && VIEWS.has(parts[1]) ? parts[1] : "open";

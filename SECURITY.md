@@ -14,7 +14,9 @@ Only the latest release and the `main` branch get security fixes.
 
 ## What Replyfold does to protect your data
 
-- Mailbox credentials (OAuth tokens, app passwords) are encrypted with AES-256-GCM. The key comes from `REPLYFOLD_SECRET_KEY` and never leaves the server.
+- Mailbox credentials (OAuth tokens, app passwords), AI provider keys and the ChatGPT sign-in are encrypted with AES-256-GCM. The key comes from `REPLYFOLD_SECRET_KEY` and never leaves the server.
+- AI provider keys are shown only as their last four characters. Error messages from providers are cleaned of the key before they reach a log, a draft or an API reply.
+- The ChatGPT sign-in follows OpenAI's flow for open-source apps: PKCE, a single-use state and nonce, a `127.0.0.1` callback, and a signature check of the ID token. Sign-out revokes the refresh token.
 - OAuth uses the authorization code flow with PKCE and a single-use state bound to the signed-in user.
 - Passwords are hashed with Bun's built-in `Bun.password` (argon2id).
 - Session cookies are `HttpOnly` and `SameSite=Lax`, and `Secure` when `PUBLIC_URL` uses HTTPS.
@@ -28,4 +30,5 @@ Only the latest release and the `main` branch get security fixes.
 
 - Run Replyfold behind HTTPS when people reach it over a network.
 - Keep `.env`, `REPLYFOLD_SECRET_KEY` and the SQLite file private and backed up.
+- Use AI keys with a spending limit where the provider offers one.
 - Create your own Google and Microsoft OAuth apps and keep their secrets private.

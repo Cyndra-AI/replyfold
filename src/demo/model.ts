@@ -120,10 +120,23 @@ function caseFor(text: string) {
   return CASES.find((item) => item.match.test(text)) ?? FALLBACK;
 }
 
+const DEMO_MOODS: Array<[RegExp, string]> = [
+  [/unacceptable|ridiculous|furious|dispute|worst/i, "angry"],
+  [/confus|not sure|do i still|which one|don't understand|wondering/i, "confused"],
+  [/still|again|third|waiting|not here|nobody|crack/i, "frustrated"],
+  [/worried|gift|birthday|in time|two charges|charged twice|nervous|mistake|by next/i, "worried"],
+  [/thank|love|wonderful|beautiful|great/i, "happy"],
+];
+
 export class DemoModel implements ModelProvider {
   readonly name = "demo";
 
   async json<T>(request: ModelRequest<T>): Promise<T> {
+    if (request.task === "classify") {
+      const email = /<EMAIL[^>]*>\n([\s\S]*?)\n<\/EMAIL>/.exec(request.prompt)?.[1] ?? "";
+      const mood = DEMO_MOODS.find(([pattern]) => pattern.test(email))?.[1] ?? "calm";
+      return request.schema.parse({ category: caseFor(email).category, mood });
+    }
     if (request.task === "lesson") {
       return request.schema.parse({
         generalizes: true,

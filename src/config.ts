@@ -11,7 +11,7 @@ const EnvSchema = z.object({
   DATABASE_PATH: z.string().default("data/replyfold.sqlite"),
   REPLYFOLD_SECRET_KEY: z.string().optional(),
   REPLYFOLD_DEMO: flag,
-  MODEL_PROVIDER: z.enum(["codex", "openai", "demo"]).optional(),
+  MODEL_PROVIDER: z.enum(["none", "codex", "openai", "demo"]).optional(),
   CODEX_MODEL: z.string().optional(),
   CODEX_BIN: z.string().optional(),
   OPENAI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
@@ -35,7 +35,8 @@ export type Config = {
   model:
     | { kind: "codex"; model?: string; binary?: string }
     | { kind: "openai"; baseUrl: string; apiKey: string; model: string }
-    | { kind: "demo" };
+    | { kind: "demo" }
+    | { kind: "none" };
   oauth: {
     gmail: { clientId: string; clientSecret: string };
     microsoft: { clientId: string; clientSecret: string; tenant: string };
@@ -53,14 +54,17 @@ export function readConfig(env: Record<string, string | undefined> = process.env
   if (secretKey.length < 16) {
     throw new Error("Set REPLYFOLD_SECRET_KEY to a random string of at least 16 characters. Run `openssl rand -base64 32` to make one.");
   }
-  const kind = parsed.MODEL_PROVIDER ?? (demo ? "demo" : "codex");
+  // Without MODEL_PROVIDER, the owner picks a provider in Settings.
+  const kind = parsed.MODEL_PROVIDER ?? (demo ? "demo" : "none");
   if (kind === "openai" && !parsed.OPENAI_MODEL) throw new Error("Set OPENAI_MODEL when MODEL_PROVIDER=openai.");
   const model: Config["model"] =
     kind === "openai"
       ? { kind, baseUrl: parsed.OPENAI_BASE_URL, apiKey: parsed.OPENAI_API_KEY, model: parsed.OPENAI_MODEL }
       : kind === "codex"
         ? { kind, model: parsed.CODEX_MODEL, binary: parsed.CODEX_BIN }
-        : { kind };
+        : kind === "demo"
+          ? { kind }
+          : { kind: "none" };
   return {
     port: parsed.PORT,
     publicUrl: (parsed.PUBLIC_URL ?? `http://localhost:${parsed.PORT}`).replace(/\/$/, ""),

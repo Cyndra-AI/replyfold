@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { User } from "../lib/api";
-import { initials } from "../lib/format";
+import { initials, MOOD_LABELS } from "../lib/format";
 import { keyLabel } from "../lib/keys";
 import { cn } from "../lib/utils";
 import { Kbd, KbdGroup } from "../ui/kbd";
@@ -71,4 +71,24 @@ export function PageHeader({ title, children, description }: { title: string; de
 export function nameOf(users: User[] | undefined, id: string | null) {
   if (!id) return null;
   return users?.find((user) => user.id === id)?.name ?? null;
+}
+
+const MOOD_TONES: Record<string, string> = {
+  happy: "bg-success",
+  calm: "bg-muted-foreground/45",
+  confused: "bg-info",
+  worried: "bg-warning",
+  frustrated: "bg-[oklch(0.68_0.16_50)]",
+  angry: "bg-destructive",
+};
+
+/** A quiet tag for the customer's mood: a colored dot and the word, so color is never the only signal. */
+export function MoodTag({ mood, className }: { mood: string | null | undefined; className?: string }) {
+  if (!mood || !MOOD_LABELS[mood]) return null;
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-1 text-muted-foreground text-xs", className)} title={`Customer mood: ${MOOD_LABELS[mood]}`}>
+      <span className={cn("size-1.5 rounded-full", MOOD_TONES[mood])} aria-hidden="true" />
+      {MOOD_LABELS[mood]}
+    </span>
+  );
 }

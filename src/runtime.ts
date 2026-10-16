@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { CodexModel, OpenAICompatibleModel, type ModelProvider } from "./ai/model";
+import type { Classifier } from "./ai/classifier";
+import { CodexModel, ModelError, OpenAICompatibleModel, type ModelProvider } from "./ai/model";
+import { AiSettings } from "./ai/settings";
 import type { Config } from "./config";
 import { SecretBox } from "./core/secrets";
 import type { Store } from "./db/store";
@@ -18,8 +20,10 @@ const OAuthCredentials = z.object({ accessToken: z.string(), refreshToken: z.str
 
 export type AppEvent = { type: "inbox" | "conversation" | "mailboxes" | "notifications"; conversationId?: string };
 
-export function createModel(config: Config): ModelProvider {
+export function createModel(config: Config): ModelProvider | null {
   switch (config.model.kind) {
+    case "none":
+      return null;
     case "codex":
       return new CodexModel({ model: config.model.model, binary: config.model.binary });
     case "openai":
@@ -33,10 +37,27 @@ export function createModel(config: Config): ModelProvider {
   }
 }
 
+/** Stands in for a provider chosen in Settings that is no longer connected, so drafts fail with a clear reason. */
+class DisconnectedModel implements ModelProvider {
+  constructor(
+    readonly name: string,
+    private readonly reason: string,
+  ) {}
+  json(): Promise<never> {
+    return Promise.reject(new ModelError(this.reason));
+  }
+}
+
+export type RuntimeOptions = { model?: ModelProvider; fetch?: (input: string, init?: RequestInit) => Promise<Response> };
+
 /** Owns everything that runs in the background: mailbox sync, the draft worker, reminders and live events. */
 export class Runtime {
   readonly box: SecretBox;
   readonly oauth: OAuthFlow;
+  readonly ai: AiSettings;
+  /** The model from .env. Settings override it once the owner picks a provider. */
+  readonly envModel: ModelProvider | null;
+  private readonly fixedModel: ModelProvider | null;
   private readonly providers = new Map<string, MailProvider>();
   private readonly listeners = new Set<(event: AppEvent) => void>();
   private timers: Array<ReturnType<typeof setInterval>> = [];
@@ -46,10 +67,28 @@ export class Runtime {
   constructor(
     readonly store: Store,
     readonly config: Config,
-    readonly model: ModelProvider = createModel(config),
+    options: RuntimeOptions | ModelProvider = {},
   ) {
+    const resolved: RuntimeOptions = "json" in options ? { model: options } : options;
     this.box = new SecretBox(config.secretKey);
     this.oauth = new OAuthFlow(config.oauth, config.publicUrl);
+    this.ai = new AiSettings(store, this.box, resolved.fetch ?? fetch);
+    this.fixedModel = resolved.model ?? null;
+    this.envModel = createModel(config);
+  }
+
+  /** The model drafts use now: a test override, then the one chosen in Settings, then the one from .env. */
+  get model(): ModelProvider {
+    if (this.fixedModel) return this.fixedModel;
+    const active = this.ai.active();
+    if (active) {
+      return this.ai.activeModel() ?? new DisconnectedModel(`${active.kind}:${active.model}`, "The AI provider chosen in Settings is not connected. Connect it again or choose another one.");
+    }
+    return this.envModel ?? new DisconnectedModel("none", "No AI model is set up yet. An owner can choose one in Settings, under AI and classification.");
+  }
+
+  async classifier(): Promise<Classifier | null> {
+    return (await this.ai.classifier(this.fixedModel ?? (this.ai.active() ? null : this.envModel))).classifier;
   }
 
   subscribe(listener: (event: AppEvent) => void) {
@@ -134,7 +173,7 @@ export class Runtime {
     try {
       for (let draft = this.store.claimQueuedDraft(); draft; draft = this.store.claimQueuedDraft()) {
         this.emit({ type: "conversation", conversationId: draft.conversationId });
-        const result = await generateDraft({ store: this.store, model: this.model, draftId: draft.id });
+        const result = await generateDraft({ store: this.store, model: this.model, classifier: await this.classifier().catch(() => null), draftId: draft.id });
         if (result.state === "failed") {
           const assignee = this.store.conversation(result.conversationId)?.assigneeId;
           if (assignee) this.store.notify({ userId: assignee, kind: "draft_failed", conversationId: result.conversationId, text: "A draft could not be written." });

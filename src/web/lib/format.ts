@@ -44,6 +44,15 @@ export const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+export const MOOD_LABELS: Record<string, string> = {
+  happy: "Happy",
+  calm: "Calm",
+  confused: "Confused",
+  worried: "Worried",
+  frustrated: "Frustrated",
+  angry: "Angry",
+};
+
 export const VIEW_LABELS: Record<string, string> = {
   mine: "Assigned to me",
   unassigned: "Unassigned",

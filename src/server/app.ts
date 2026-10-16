@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { CATEGORIES, CONVERSATION_STATUSES, DISCARD_REASONS, ROLES, type Role, type User } from "../core/types";
+import { ChatGPTSignInError, CHATGPT, loopbackRedirect } from "../ai/chatgpt";
+import { ModelError } from "../ai/model";
+import { KEY_PROVIDERS, type AiProviderKind, type KeyProviderKind } from "../ai/providers";
+import { CATEGORIES, CONVERSATION_STATUSES, DISCARD_REASONS, MOODS, ROLES, type Mood, type Role, type User } from "../core/types";
 import { randomToken, sha256 } from "../core/secrets";
 import type { InboxView } from "../db/store";
 import { DEMO_PASSWORD, DEMO_TEAM } from "../demo/fixtures";
@@ -103,7 +106,9 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
 
   route("GET", "/api/inbox", "agent", ({ url, user }) => {
     const view = (VIEWS as readonly string[]).includes(url.searchParams.get("view") ?? "") ? (url.searchParams.get("view") as InboxView) : "open";
-    const conversations = store.listConversations({ view, userId: user.id, query: url.searchParams.get("q") ?? "" }).map((conversation) => {
+    const moodParam = url.searchParams.get("mood") ?? "";
+    const mood = (MOODS as readonly string[]).includes(moodParam) ? (moodParam as Mood) : undefined;
+    const conversations = store.listConversations({ view, userId: user.id, query: url.searchParams.get("q") ?? "", mood }).map((conversation) => {
       const draft = store.currentDraft(conversation.id);
       return {
         ...conversation,
@@ -315,7 +320,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
       oauth: { gmail: runtime.oauth.configured("gmail"), microsoft: runtime.oauth.configured("microsoft") },
       redirectUris: { gmail: runtime.oauth.redirectUri("gmail"), microsoft: runtime.oauth.redirectUri("microsoft") },
       presets: IMAP_PRESETS,
-      model: { name: runtime.model.name, kind: config.model.kind },
     }),
   );
 
@@ -368,6 +372,127 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     } catch (error) {
       return back(error instanceof OAuthError ? error.message : "The connection failed. Try again.");
     }
+  });
+
+  const KEY_KINDS = KEY_PROVIDERS as readonly string[];
+  const keyKind = (value: string | undefined) => {
+    if (!value || !KEY_KINDS.includes(value)) throw new HttpError(404, "Unknown AI provider.");
+    return value as KeyProviderKind;
+  };
+  const modelErrors = async <T>(work: () => Promise<T> | T) => {
+    try {
+      return await work();
+    } catch (error) {
+      if (error instanceof ModelError || error instanceof ChatGPTSignInError) throw new HttpError(400, error.message);
+      throw error;
+    }
+  };
+
+  async function aiView(url: URL) {
+    const { plan } = await runtime.ai.classifier(runtime.ai.active() ? null : runtime.envModel);
+    const loopback = loopbackRedirect(url);
+    return {
+      providers: runtime.ai.providers(),
+      active: runtime.ai.active(),
+      env: runtime.envModel ? { name: runtime.envModel.name, kind: config.model.kind } : null,
+      chatgpt: {
+        ...runtime.ai.chatgptView(),
+        canStartHere: Boolean(loopback),
+        loopbackUrl: `http://127.0.0.1:${config.port}/settings/ai`,
+      },
+      classification: { ...runtime.ai.classifySettings(), openrouterConnected: runtime.ai.connected("openrouter"), plan },
+    };
+  }
+
+  route("GET", "/api/ai", "agent", async ({ url }) => json(await aiView(url)));
+
+  route("PUT", "/api/ai/providers/:kind", "owner", async ({ request, params, url }) => {
+    const kind = keyKind(params.kind);
+    const input = await body(request, z.object({ apiKey: z.string().max(500).optional(), baseUrl: z.string().max(500).optional() }));
+    if (input.baseUrl && !/^https?:\/\/[^\s]+$/.test(input.baseUrl.trim())) throw new HttpError(400, "The base URL must start with http:// or https://.");
+    await modelErrors(() => runtime.ai.saveKey(kind, input));
+    return json(await aiView(url));
+  });
+
+  route("DELETE", "/api/ai/providers/:kind", "owner", async ({ params, url }) => {
+    runtime.ai.removeKey(keyKind(params.kind));
+    return json(await aiView(url));
+  });
+
+  route("POST", "/api/ai/providers/:kind/test", "owner", async ({ request, params }) => {
+    const kind = keyKind(params.kind);
+    const input = await body(request, z.object({ apiKey: z.string().max(500).optional(), baseUrl: z.string().max(500).optional() }));
+    const result = await modelErrors(() => runtime.ai.test(kind, input));
+    return json({ ok: result.ok, message: result.message, models: result.models.length });
+  });
+
+  route("GET", "/api/ai/models/:kind", "owner", async ({ params, url }) => {
+    const kind = params.kind === "chatgpt" ? "chatgpt" : keyKind(params.kind);
+    const models = await modelErrors(() => runtime.ai.models(kind, url.searchParams.get("fresh") === "1"));
+    return json({ models });
+  });
+
+  route("PUT", "/api/ai/active", "owner", async ({ request, url }) => {
+    const input = await body(request, z.object({ kind: z.enum([...KEY_PROVIDERS, "chatgpt"]), model: z.string().trim().min(1).max(200) }));
+    await modelErrors(() => runtime.ai.setActive(input as { kind: AiProviderKind; model: string }));
+    return json(await aiView(url));
+  });
+
+  route("DELETE", "/api/ai/active", "owner", async ({ url }) => {
+    runtime.ai.clearActive();
+    return json(await aiView(url));
+  });
+
+  route("PUT", "/api/ai/classification", "owner", async ({ request, url }) => {
+    const input = await body(request, z.object({ jev: z.boolean().optional(), model: z.string().trim().min(1).max(200).nullable().optional() }));
+    await modelErrors(() => runtime.ai.saveClassifySettings(input));
+    return json(await aiView(url));
+  });
+
+  route("POST", "/api/ai/classification/test", "owner", async ({ request }) => {
+    const input = await body(request, z.object({ subject: z.string().max(300).default(""), text: z.string().max(6000).default("") }));
+    const { classifier, plan } = await runtime.ai.classifier(runtime.ai.active() ? null : runtime.envModel);
+    if (!classifier) throw new HttpError(409, plan.note);
+    const sample = input.text.trim()
+      ? input
+      : { subject: "Order #1042 still not here", text: "I ordered a mug set two weeks ago and tracking has not moved in six days. It is a birthday present for Saturday. This is the second time I am writing. Can someone please tell me what is going on?" };
+    const started = Date.now();
+    const result = await modelErrors(() => classifier.classify(sample));
+    return json({ ...result, model: classifier.name, ms: Date.now() - started, sample });
+  });
+
+  route("GET", "/api/ai/chatgpt/start", "owner", ({ url, user }) => {
+    const back = (message: string) => Response.redirect(`/settings/ai?error=${encodeURIComponent(message)}`, 302);
+    const redirectUri = loopbackRedirect(url);
+    if (!redirectUri) return back(`ChatGPT sign-in only finishes on the computer that runs Replyfold. Open http://127.0.0.1:${config.port}/settings/ai there and try again.`);
+    const { url: authorize } = runtime.ai.chatgpt.start({
+      userId: user.id,
+      redirectUri,
+      consent: url.searchParams.get("consent") === "1",
+      newAccount: url.searchParams.get("account") === "new",
+    });
+    return Response.redirect(authorize, 302);
+  });
+
+  route("GET", CHATGPT.callbackPath, "owner", async ({ url, user }) => {
+    try {
+      const result = await runtime.ai.chatgpt.complete({ userId: user.id, params: url.searchParams });
+      return Response.redirect(`/settings/ai?chatgpt=${result.planEnabled ? "connected" : "no-plan"}`, 302);
+    } catch (error) {
+      const message = error instanceof ChatGPTSignInError ? error.message : "The ChatGPT sign-in failed. Try again.";
+      return Response.redirect(`/settings/ai?error=${encodeURIComponent(message)}`, 302);
+    }
+  });
+
+  route("POST", "/api/ai/chatgpt/signout", "owner", async ({ url }) => {
+    const { revoked } = await runtime.ai.chatgpt.signOut();
+    if (runtime.ai.active()?.kind === "chatgpt") runtime.ai.clearActive();
+    return json({ revoked, ...(await aiView(url)) });
+  });
+
+  route("POST", "/api/ai/chatgpt/welcomed", "owner", () => {
+    runtime.ai.markWelcomed();
+    return json({ ok: true });
   });
 
   route("POST", "/api/mailboxes/:id/sync", "agent", async ({ params }) => {
