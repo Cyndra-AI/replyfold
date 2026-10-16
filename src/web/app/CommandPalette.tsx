@@ -61,6 +61,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: { open: 
           { value: "go to insights statistics", label: "Insights", keys: "g s", run: go("/insights") },
           { value: "go to mailboxes settings", label: "Mailboxes", keys: "g ,", run: go("/settings/mailboxes") },
           { value: "go to team", label: "Team", run: go("/settings/team") },
+          { value: "ai model chatgpt api key openrouter anthropic gemini classification mood jev", label: "AI and classification", run: go("/settings/ai") },
         ],
       },
       {

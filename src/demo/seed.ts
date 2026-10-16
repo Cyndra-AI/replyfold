@@ -1,3 +1,4 @@
+import { ModelClassifier } from "../ai/classifier";
 import type { Store } from "../db/store";
 import { learnFromEdit } from "../drafts/learning";
 import { sendReply } from "../drafts/send";
@@ -82,7 +83,7 @@ export async function seedDemo(store: Store, now = Date.now()) {
 
   await syncMailbox({ store, mailbox: store.mailbox(mailbox.id)!, provider });
   for (let draft = store.claimQueuedDraft(); draft; draft = store.claimQueuedDraft()) {
-    await generateDraft({ store, model, draftId: draft.id, now: () => new Date(now) });
+    await generateDraft({ store, model, classifier: new ModelClassifier(model), draftId: draft.id, now: () => new Date(now) });
   }
 
   const open = store.listConversations({ view: "open" });

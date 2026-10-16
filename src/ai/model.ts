@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 
 export type ModelRequest<T> = {
-  task: "analyze" | "draft" | "lesson" | "assist";
+  task: "analyze" | "draft" | "lesson" | "assist" | "classify";
   system: string;
   prompt: string;
   schema: z.ZodType<T>;
@@ -20,7 +20,44 @@ export class ModelError extends Error {
   override name = "ModelError";
 }
 
-function parseJson<T>(schema: z.ZodType<T>, text: string): T {
+/** Replaces every secret in a message, so a provider that echoes a key back never puts it in a log or a draft error. */
+export function redact(text: string, secrets: Array<string | undefined>) {
+  let out = text;
+  for (const secret of secrets) if (secret && secret.length >= 6) out = out.split(secret).join("[redacted]");
+  return out;
+}
+
+/** The JSON Schema for a request, without the `$schema` key that some providers reject. */
+export function jsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _ignored, ...rest } = z.toJSONSchema(schema) as Record<string, unknown>;
+  return rest;
+}
+
+export function validate<T>(schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) throw new ModelError(`The model reply did not match the expected shape: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+  return parsed.data;
+}
+
+/** Reads a provider error body into one short line, with secrets removed. */
+export async function providerError(label: string, response: Response, secrets: Array<string | undefined>) {
+  let detail = "";
+  try {
+    const text = await response.text();
+    try {
+      const body = JSON.parse(text) as { error?: { message?: string; code?: string } | string; detail?: string; message?: string };
+      detail = typeof body.error === "string" ? body.error : (body.error?.message ?? body.detail ?? body.message ?? "");
+    } catch {
+      detail = text;
+    }
+  } catch {
+    detail = "";
+  }
+  detail = redact(detail.replace(/\s+/g, " ").trim().slice(0, 200), secrets);
+  return new ModelError(`${label} returned HTTP ${response.status}${detail ? `: ${detail}` : "."}`);
+}
+
+export function parseJson<T>(schema: z.ZodType<T>, text: string): T {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end < start) throw new ModelError("The model did not return JSON.");
@@ -30,39 +67,43 @@ function parseJson<T>(schema: z.ZodType<T>, text: string): T {
   } catch {
     throw new ModelError("The model returned malformed JSON.");
   }
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) throw new ModelError(`The model reply did not match the expected shape: ${parsed.error.issues[0]?.message ?? "invalid"}`);
-  return parsed.data;
+  return validate(schema, value);
 }
 
-type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-/** Any server that speaks the OpenAI chat completions API: OpenAI, OpenRouter, Ollama, vLLM, LM Studio. */
+/**
+ * Any server that speaks the OpenAI chat completions API: OpenAI, OpenRouter, Groq, Mistral, Ollama, vLLM, LM Studio.
+ * `jsonMode: "object"` asks for plain JSON and puts the schema in the system message, for servers without JSON Schema output.
+ */
 export class OpenAICompatibleModel implements ModelProvider {
   readonly name: string;
 
   constructor(
-    private readonly options: { baseUrl: string; apiKey: string; model: string; timeoutMs?: number },
+    private readonly options: { baseUrl: string; apiKey: string; model: string; timeoutMs?: number; jsonMode?: "schema" | "object"; label?: string },
     private readonly fetcher: Fetch = fetch,
   ) {
     this.name = options.model;
   }
 
   async json<T>(request: ModelRequest<T>): Promise<T> {
+    const schema = jsonSchema(request.schema);
+    const objectMode = this.options.jsonMode === "object";
+    const system = objectMode ? `${request.system}\n\nReply with one JSON object that matches this JSON Schema:\n${JSON.stringify(schema)}` : request.system;
     const response = await this.fetcher(`${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(this.options.apiKey ? { authorization: `Bearer ${this.options.apiKey}` } : {}) },
       body: JSON.stringify({
         model: this.options.model,
         messages: [
-          { role: "system", content: request.system },
+          { role: "system", content: system },
           { role: "user", content: request.prompt },
         ],
-        response_format: { type: "json_schema", json_schema: { name: request.task, schema: z.toJSONSchema(request.schema) } },
+        response_format: objectMode ? { type: "json_object" } : { type: "json_schema", json_schema: { name: request.task, schema } },
       }),
       signal: AbortSignal.timeout(this.options.timeoutMs ?? 120_000),
     });
-    if (!response.ok) throw new ModelError(`The model API returned HTTP ${response.status}.`);
+    if (!response.ok) throw await providerError(this.options.label ?? "The model API", response, [this.options.apiKey]);
     const body = z
       .object({ choices: z.array(z.object({ message: z.object({ content: z.string().nullable() }) })).min(1) })
       .parse(await response.json());
@@ -98,7 +139,7 @@ export class CodexModel implements ModelProvider {
     try {
       const schemaPath = join(dir, "schema.json");
       const outputPath = join(dir, "output.json");
-      await writeFile(schemaPath, JSON.stringify(z.toJSONSchema(request.schema)));
+      await writeFile(schemaPath, JSON.stringify(jsonSchema(request.schema)));
       const args = [
         "exec",
         "--skip-git-repo-check",

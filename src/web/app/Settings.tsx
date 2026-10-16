@@ -1,4 +1,4 @@
-import { CheckCircle2Icon, MailIcon, PauseIcon, PlayIcon, RefreshCwIcon, ServerIcon, Trash2Icon } from "lucide-react";
+import { MailIcon, PauseIcon, PlayIcon, RefreshCwIcon, ServerIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type MailboxesResponse, type User } from "../lib/api";
 import { fullTime, PROVIDER_LABELS, relativeTime } from "../lib/format";
@@ -14,11 +14,13 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
+import { AiSettingsSection } from "./AiSettings";
 import { useSession } from "./App";
 import { PageHeader, Person } from "./common";
 
 const SECTIONS = [
   { id: "mailboxes", label: "Mailboxes" },
+  { id: "ai", label: "AI and classification" },
   { id: "team", label: "Team" },
   { id: "profile", label: "Profile and signature" },
 ] as const;
@@ -208,7 +210,7 @@ function Mailboxes() {
   }
 
   if (!data.data) return null;
-  const { mailboxes, oauth, redirectUris, presets, model } = data.data;
+  const { mailboxes, oauth, redirectUris, presets } = data.data;
 
   return (
     <>
@@ -280,11 +282,10 @@ function Mailboxes() {
           </div>
         ) : null}
       </Block>
-      <Block title="AI model" description="Drafts come from the model set in .env. Change MODEL_PROVIDER to switch between the Codex CLI and any OpenAI-compatible API.">
-        <p className="flex items-center gap-2 text-sm">
-          <CheckCircle2Icon className="size-4 text-success" />
-          Using <span className="font-medium">{model.name}</span>
-        </p>
+      <Block title="AI model" description="Pick the model that writes drafts, connect your ChatGPT plan or add an API key.">
+        <Link href="/settings/ai" className="text-sm underline underline-offset-3">
+          Open AI and classification settings
+        </Link>
       </Block>
     </>
   );
@@ -469,7 +470,7 @@ function Profile() {
   );
 }
 
-export function Settings({ section }: { section: "mailboxes" | "team" | "profile" }) {
+export function Settings({ section }: { section: "mailboxes" | "ai" | "team" | "profile" }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader title="Settings" />
@@ -496,6 +497,7 @@ export function Settings({ section }: { section: "mailboxes" | "team" | "profile
         <div className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
           <div className="max-w-4xl">
             {section === "mailboxes" ? <Mailboxes /> : null}
+            {section === "ai" ? <AiSettingsSection /> : null}
             {section === "team" ? <Team /> : null}
             {section === "profile" ? <Profile /> : null}
           </div>

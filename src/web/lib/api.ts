@@ -68,7 +68,42 @@ export type MailboxesResponse = {
   oauth: { gmail: boolean; microsoft: boolean };
   redirectUris: { gmail: string; microsoft: string };
   presets: ImapPreset[];
-  model: { name: string; kind: string };
+};
+
+export type ModelChoice = { id: string; label: string };
+
+export type AiProviderView = {
+  kind: string;
+  label: string;
+  keyUrl: string;
+  keyOptional: boolean;
+  needsBaseUrl: boolean;
+  connected: boolean;
+  keyHint: string;
+  baseUrl: string;
+  test: { ok: boolean; at: string; message: string } | null;
+};
+
+export type AiResponse = {
+  providers: AiProviderView[];
+  active: { kind: string; model: string } | null;
+  env: { name: string; kind: string } | null;
+  chatgpt: {
+    connected: boolean;
+    email: string;
+    planEnabled: boolean;
+    registered: boolean;
+    welcomePending: boolean;
+    usageUrl: string;
+    canStartHere: boolean;
+    loopbackUrl: string;
+  };
+  classification: {
+    jev: boolean;
+    model: string | null;
+    openrouterConnected: boolean;
+    plan: { kind: "jev" | "model" | "none"; name: string; provider: string; note: string };
+  };
 };
 
 export type { Notification, Stats, ImapPreset };

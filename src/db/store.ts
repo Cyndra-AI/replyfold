@@ -13,6 +13,7 @@ import type {
   Lesson,
   Mailbox,
   Message,
+  Mood,
   Notification,
   PlaybookVersion,
   ProviderKind,
@@ -24,7 +25,7 @@ import type {
   User,
   ValidationIssue,
 } from "../core/types";
-import { SCHEMA } from "./schema";
+import { ADDED_COLUMNS, SCHEMA } from "./schema";
 
 type Row = Record<string, unknown>;
 
@@ -93,6 +94,7 @@ function toConversation(row: Row): Conversation {
     status: str(row.status) as ConversationStatus,
     assigneeId: strOrNull(row.assignee_id),
     category: str(row.category) as Category,
+    mood: (strOrNull(row.mood) as Mood | null) ?? null,
     lastMessageAt: str(row.last_message_at),
     lastInboundAt: strOrNull(row.last_inbound_at),
     snippet: str(row.snippet),
@@ -139,6 +141,10 @@ export class Store {
     this.db = new Database(path, { create: true, strict: true });
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     this.db.exec(SCHEMA);
+    for (const added of ADDED_COLUMNS) {
+      const columns = this.db.query(`PRAGMA table_info(${added.table})`).all() as Array<{ name: string }>;
+      if (!columns.some((column) => column.name === added.column)) this.db.exec(`ALTER TABLE ${added.table} ADD COLUMN ${added.column} ${added.definition}`);
+    }
   }
 
   close() {
@@ -297,9 +303,13 @@ export class Store {
     return row ? toConversation(row) : null;
   }
 
-  listConversations(input: { view: InboxView; userId?: string; query?: string; limit?: number }): Conversation[] {
+  listConversations(input: { view: InboxView; userId?: string; query?: string; mood?: Mood; limit?: number }): Conversation[] {
     const where: string[] = [];
     const values: string[] = [];
+    if (input.mood) {
+      where.push("mood = ?");
+      values.push(input.mood);
+    }
     switch (input.view) {
       case "mine":
         where.push("status != 'closed'", "assignee_id = ?");
@@ -358,16 +368,17 @@ export class Store {
 
   updateConversation(
     conversationId: string,
-    patch: { status?: ConversationStatus; assigneeId?: string | null; category?: Category; unread?: boolean },
+    patch: { status?: ConversationStatus; assigneeId?: string | null; category?: Category; mood?: Mood | null; unread?: boolean },
   ) {
     const current = this.conversation(conversationId);
     if (!current) return null;
     this.db
-      .query("UPDATE conversations SET status = ?, assignee_id = ?, category = ?, unread = ? WHERE id = ?")
+      .query("UPDATE conversations SET status = ?, assignee_id = ?, category = ?, mood = ?, unread = ? WHERE id = ?")
       .run(
         patch.status ?? current.status,
         patch.assigneeId === undefined ? current.assigneeId : patch.assigneeId,
         patch.category ?? current.category,
+        patch.mood === undefined ? current.mood : patch.mood,
         (patch.unread ?? current.unread) ? 1 : 0,
         conversationId,
       );
@@ -479,6 +490,7 @@ export class Store {
       messageIdHeader: str(row.message_id_header),
       attachments,
       sentByUserId: strOrNull(row.sent_by_user_id),
+      mood: (strOrNull(row.mood) as Mood | null) ?? null,
     };
   }
 
@@ -768,5 +780,13 @@ export class Store {
 
   setSetting(key: string, value: string) {
     this.db.query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, value);
+  }
+
+  deleteSetting(key: string) {
+    this.db.query("DELETE FROM settings WHERE key = ?").run(key);
+  }
+
+  setMessageMood(messageId: string, mood: Mood) {
+    this.db.query("UPDATE messages SET mood = ? WHERE id = ?").run(mood, messageId);
   }
 }

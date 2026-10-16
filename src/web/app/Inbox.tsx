@@ -1,17 +1,17 @@
-import { AlertTriangleIcon, InboxIcon, MenuIcon, RefreshCwIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, InboxIcon, ListFilterIcon, MenuIcon, RefreshCwIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type InboxResponse, type InboxRow, type MailboxesResponse } from "../lib/api";
-import { relativeTime, VIEW_LABELS } from "../lib/format";
+import { MOOD_LABELS, relativeTime, VIEW_LABELS } from "../lib/format";
 import { useShortcuts } from "../lib/keys";
 import { invalidate, useResource } from "../lib/resource";
 import { Link, navigate } from "../lib/router";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
+import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from "../ui/menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Skeleton } from "../ui/skeleton";
 import { Spinner } from "../ui/spinner";
-import { Hint, Hotkey, Person } from "./common";
+import { Hint, Hotkey, MoodTag, Person } from "./common";
 import { Reader } from "./Reader";
 
 function DraftMark({ draft }: { draft: InboxRow["draft"] }) {
@@ -78,6 +78,7 @@ function Row({ row, selected, view, names }: { row: InboxRow; selected: boolean;
             <span className="text-foreground/80">{row.subject}</span>
             <span className="text-muted-foreground/80"> {row.snippet}</span>
           </span>
+          <MoodTag mood={row.mood} />
           <DraftMark draft={row.draft} />
         </span>
       </span>
@@ -101,13 +102,14 @@ function ListSkeleton() {
 export function Inbox({ view, conversationId }: { view: string; conversationId: string | null }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [mood, setMood] = useState("");
   const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 200);
     return () => clearTimeout(timer);
   }, [query]);
-  const path = `/api/inbox?view=${view}${debounced ? `&q=${encodeURIComponent(debounced)}` : ""}`;
+  const path = `/api/inbox?view=${view}${debounced ? `&q=${encodeURIComponent(debounced)}` : ""}${mood ? `&mood=${mood}` : ""}`;
   const inbox = useResource<InboxResponse>(path);
   const team = useResource<{ users: Array<{ id: string; name: string }> }>("/api/team");
   const mailboxes = useResource<MailboxesResponse>("/api/mailboxes");
@@ -177,6 +179,28 @@ export function Inbox({ view, conversationId }: { view: string; conversationId: 
             {VIEW_LABELS[view] ?? "Inbox"}
             <span className="tabular font-normal text-muted-foreground text-xs">{inbox.data ? rows.length : ""}</span>
           </h1>
+          <Menu>
+            <Hint label="Filter by mood">
+              <MenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Filter by mood" className={cn(mood && "text-brand")} />}>
+                <ListFilterIcon />
+              </MenuTrigger>
+            </Hint>
+            <MenuPopup align="end" className="w-48">
+              <MenuGroup>
+                <MenuGroupLabel>Customer mood</MenuGroupLabel>
+                <MenuRadioGroup value={mood} onValueChange={(value: string) => setMood(value)}>
+                  <MenuRadioItem value="" closeOnClick>
+                    Any mood
+                  </MenuRadioItem>
+                  {Object.keys(MOOD_LABELS).map((value) => (
+                    <MenuRadioItem key={value} value={value} closeOnClick>
+                      <MoodTag mood={value} className="text-foreground text-sm" />
+                    </MenuRadioItem>
+                  ))}
+                </MenuRadioGroup>
+              </MenuGroup>
+            </MenuPopup>
+          </Menu>
           <Hint label="Check for new mail">
             <Button variant="ghost" size="icon-xs" aria-label="Check for new mail" onClick={() => void syncNow()} disabled={syncing}>
               <RefreshCwIcon className={cn(syncing && "animate-spin")} />
@@ -207,6 +231,16 @@ export function Inbox({ view, conversationId }: { view: string; conversationId: 
             <Hotkey keys="/" />
           )}
         </div>
+        {mood ? (
+          <div className="flex h-9 shrink-0 items-center gap-2 border-b px-4 text-sm">
+            <span className="text-muted-foreground">Mood:</span>
+            <MoodTag mood={mood} className="text-foreground text-sm" />
+            <button type="button" onClick={() => setMood("")} className="ms-auto flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground">
+              <XIcon className="size-3" />
+              Clear filter
+            </button>
+          </div>
+        ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!inbox.data ? (
             <ListSkeleton />
@@ -218,9 +252,11 @@ export function Inbox({ view, conversationId }: { view: string; conversationId: 
                 <EmptyMedia variant="icon">
                   <InboxIcon />
                 </EmptyMedia>
-                <EmptyTitle>{debounced ? "No matches" : noMailbox ? "Connect a mailbox" : "Nothing here"}</EmptyTitle>
+                <EmptyTitle>{debounced || mood ? "No matches" : noMailbox ? "Connect a mailbox" : "Nothing here"}</EmptyTitle>
                 <EmptyDescription>
-                  {debounced ? (
+                  {mood && !debounced ? (
+                    `No conversation in this view has a ${MOOD_LABELS[mood]?.toLowerCase()} customer. Clear the filter to see all of them.`
+                  ) : debounced ? (
                     "Try a customer's name, their email address, or a word from the message."
                   ) : noMailbox ? (
                     <>

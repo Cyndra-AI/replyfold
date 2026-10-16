@@ -22,6 +22,9 @@ export type EditClass = (typeof EDIT_CLASSES)[number];
 export const CATEGORIES = ["shipping", "billing", "returns", "account", "product", "feedback", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+export const MOODS = ["happy", "calm", "confused", "worried", "frustrated", "angry"] as const;
+export type Mood = (typeof MOODS)[number];
+
 export type Address = { name: string; email: string };
 
 export type User = {
@@ -52,6 +55,8 @@ export type Conversation = {
   status: ConversationStatus;
   assigneeId: string | null;
   category: Category;
+  /** The customer's mood in their latest email, or null when it was not classified. */
+  mood: Mood | null;
   lastMessageAt: string;
   lastInboundAt: string | null;
   snippet: string;
@@ -79,6 +84,7 @@ export type Message = {
   messageIdHeader: string;
   attachments: Attachment[];
   sentByUserId: string | null;
+  mood: Mood | null;
 };
 
 export type DraftAnalysis = {

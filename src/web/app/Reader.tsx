@@ -7,11 +7,11 @@ import { invalidate, useResource } from "../lib/resource";
 import { navigate } from "../lib/router";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Menu, MenuGroupLabel, MenuItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from "../ui/menu";
+import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from "../ui/menu";
 import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { useSession } from "./App";
-import { Hint, Person } from "./common";
+import { Hint, MoodTag, Person } from "./common";
 import { Composer } from "./Composer";
 
 const STATUS_LABELS: Record<ConversationStatus, string> = { open: "Open", waiting: "Waiting on customer", closed: "Closed" };
@@ -34,6 +34,7 @@ function MessageItem({ message, sender }: { message: Message; sender: string | n
           </p>
           {message.cc.length ? <p className="truncate text-muted-foreground text-xs">Cc {message.cc.map((entry) => entry.email).join(", ")}</p> : null}
         </div>
+        {!outbound ? <MoodTag mood={message.mood} /> : null}
         <time className="tabular shrink-0 text-muted-foreground text-xs" dateTime={message.sentAt} title={fullTime(message.sentAt)}>
           {relativeTime(message.sentAt)}
         </time>
@@ -157,14 +158,16 @@ export function Reader({ conversationId, view, onRemoved }: { conversationId: st
               ))}
             </MenuRadioGroup>
             <MenuSeparator />
-            <MenuGroupLabel>Category</MenuGroupLabel>
-            <MenuRadioGroup value={conversation.category} onValueChange={(value: string) => void update({ category: value })}>
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <MenuRadioItem key={value} value={value}>
-                  {label}
-                </MenuRadioItem>
-              ))}
-            </MenuRadioGroup>
+            <MenuGroup>
+              <MenuGroupLabel>Category</MenuGroupLabel>
+              <MenuRadioGroup value={conversation.category} onValueChange={(value: string) => void update({ category: value })}>
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  <MenuRadioItem key={value} value={value}>
+                    {label}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuGroup>
             <MenuSeparator />
             <MenuItem onClick={() => setReminderOpen(true)}>
               <BellIcon />
@@ -181,6 +184,11 @@ export function Reader({ conversationId, view, onRemoved }: { conversationId: st
           <Badge variant="outline" size="sm">
             {CATEGORY_LABELS[conversation.category]}
           </Badge>
+          {conversation.mood ? (
+            <Badge variant="outline" size="sm">
+              <MoodTag mood={conversation.mood} className="text-foreground text-[inherit]" />
+            </Badge>
+          ) : null}
           {data.reminders
             .filter((reminder) => !reminder.doneAt)
             .map((reminder) => (
