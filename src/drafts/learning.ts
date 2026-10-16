@@ -22,7 +22,8 @@ export async function learnFromEdit(input: { store: Store; model: ModelProvider;
   });
   const lesson = store.addLesson({ draftId: draft.id, category: result.category, summary: result.summary, rule: result.rule });
   const rule = result.rule.trim();
-  if (result.generalizes && rule && !playbook.toLowerCase().includes(rule.toLowerCase())) {
+  const known = [playbook, ...store.suggestions().map((item) => item.rule)].join("\n").toLowerCase();
+  if (result.generalizes && rule && !known.includes(rule.toLowerCase())) {
     store.addSuggestion({ rule, rationale: result.summary, lessonIds: [lesson.id] });
   }
   return lesson;
