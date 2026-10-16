@@ -56,8 +56,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     return conversation;
   }
 
-  // Session
-
   route("GET", "/api/session", null, ({ user }) =>
     json({
       user,
@@ -101,8 +99,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     });
     return json({ user: updated });
   });
-
-  // Inbox
 
   const VIEWS = ["mine", "unassigned", "open", "waiting", "closed", "all"] as const;
 
@@ -253,8 +249,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     });
   });
 
-  // Playbook and learning
-
   route("GET", "/api/playbook", "agent", () =>
     json({ current: store.playbook(), versions: store.playbookVersions(), suggestions: store.suggestions("pending"), lessons: store.lessons(20) }),
   );
@@ -283,8 +277,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     return json({ ok: true });
   });
 
-  // Insights
-
   route("GET", "/api/stats", "agent", ({ url }) => {
     const days = Math.min(Math.max(Number(url.searchParams.get("days") ?? 14) || 14, 1), 90);
     const to = new Date();
@@ -292,8 +284,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     from.setUTCHours(0, 0, 0, 0);
     return json(computeStats(store, { from: from.toISOString(), to: to.toISOString() }));
   });
-
-  // Team
 
   route("GET", "/api/team", "agent", () => json({ users: store.listUsers() }));
 
@@ -317,8 +307,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     store.deleteUser(params.id!);
     return json({ ok: true });
   });
-
-  // Mailboxes
 
   route("GET", "/api/mailboxes", "agent", () =>
     json({
@@ -399,8 +387,6 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     runtime.emit({ type: "inbox" });
     return json({ ok: true });
   });
-
-  // Notifications and live events
 
   route("GET", "/api/notifications", "agent", ({ user }) => json({ notifications: store.notifications(user.id) }));
 

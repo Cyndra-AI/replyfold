@@ -150,7 +150,7 @@ export class DemoModel implements ModelProvider {
         disposition: chosen.noReply ? "no_reply" : "reply",
         needsHuman: chosen.needsHuman ?? false,
         missingInformation: chosen.missing ?? [],
-        facts: latest ? [{ claim: chosen.intent, evidence: [latest.id] }] : [],
+        facts: latest ? [{ claim: `Customer wrote: "${(latest.text.split(/(?<=[.?!])\s/)[0] ?? "").replace(/^(hi|hello)[^,]*,\s*/i, "").slice(0, 120)}"`, evidence: [latest.id] }] : [],
         confidence: chosen.confidence,
       });
     }

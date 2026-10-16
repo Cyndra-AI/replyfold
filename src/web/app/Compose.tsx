@@ -97,10 +97,10 @@ export function Compose() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader title="New email" />
-      <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <Line label="From">
           <Select value={from} onValueChange={(value: string | null) => setMailboxId(value)} items={list.map((mailbox) => ({ value: mailbox.id, label: `${mailbox.displayName} <${mailbox.address}>` }))}>
-            <SelectTrigger size="sm" className="w-auto min-w-64 border-0 bg-transparent shadow-none before:hidden">
+            <SelectTrigger size="sm" className="w-auto min-w-64 border-0 bg-transparent px-0 shadow-none before:hidden">
               <SelectValue />
             </SelectTrigger>
             <SelectPopup>
@@ -126,7 +126,7 @@ export function Compose() {
           onChange={(event) => setBody(event.target.value)}
           aria-label="Message"
           placeholder="Write your message. Your signature is added when it sends."
-          className="min-h-48 flex-1 resize-none bg-transparent px-5 py-4 text-[0.875rem] leading-[1.6] outline-none placeholder:text-muted-foreground/70"
+          className="min-h-48 max-w-[80ch] flex-1 resize-none bg-transparent px-5 py-4 text-[0.875rem] leading-[1.6] outline-none placeholder:text-muted-foreground/70"
         />
         <footer className="flex items-center gap-3 border-t px-5 py-3">
           <Button onClick={() => void send()} loading={sending} disabled={!to.trim() || !subject.trim() || !body.trim()} className="pressable">

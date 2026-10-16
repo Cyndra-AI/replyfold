@@ -7,7 +7,6 @@ import { DEMO_MAILBOX, DEMO_PASSWORD, DEMO_PLAYBOOK, DEMO_TEAM, demoHistory } fr
 import { DemoModel } from "./model";
 import { DemoProvider } from "./provider";
 
-/** Fills an empty database with the fictional Fernhill team, two weeks of history and an open inbox. */
 export async function seedDemo(store: Store, now = Date.now()) {
   if (store.countUsers() > 0) return;
   const passwordHash = await Bun.password.hash(DEMO_PASSWORD);

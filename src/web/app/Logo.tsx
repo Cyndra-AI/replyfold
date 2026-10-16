@@ -1,6 +1,5 @@
 import { cn } from "../lib/utils";
 
-/** The folded-corner sheet whose flap turns into a reply arrow. Drawn from the generated logo. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" className={cn("size-5 shrink-0", className)}>

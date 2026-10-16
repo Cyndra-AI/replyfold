@@ -149,8 +149,6 @@ export class Store {
     return this.db.transaction(work)();
   }
 
-  // Users and sessions
-
   countUsers() {
     return (this.db.query("SELECT count(*) AS n FROM users").get() as { n: number }).n;
   }
@@ -211,8 +209,6 @@ export class Store {
     this.db.query("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
   }
 
-  // Mailboxes
-
   createMailbox(input: { provider: ProviderKind; address: string; displayName: string; credentials: string }): Mailbox {
     const mailboxId = id();
     this.db
@@ -264,8 +260,6 @@ export class Store {
   deleteMailbox(mailboxId: string) {
     this.db.query("DELETE FROM mailboxes WHERE id = ?").run(mailboxId);
   }
-
-  // Conversations and messages
 
   conversationByHint(mailboxId: string, hint: string): Conversation | null {
     const row = this.db
@@ -514,8 +508,6 @@ export class Store {
     };
   }
 
-  // Drafts
-
   createDraft(input: { conversationId: string; forMessageId: string; instruction?: string }): Draft {
     const draftId = id();
     const at = nowIso();
@@ -608,8 +600,6 @@ export class Store {
     this.db.query("UPDATE drafts SET state = 'queued', updated_at = ? WHERE state = 'generating'").run(nowIso());
   }
 
-  // Sends
-
   /** Stages a send under an idempotency key. A repeated key returns the first send. */
   stageSend(input: { conversationId: string; draftId: string | null; key: string; body: string; userId: string }): { send: Send; fresh: boolean } {
     const sendId = id();
@@ -635,8 +625,6 @@ export class Store {
     const row = this.db.query("SELECT * FROM sends WHERE id = ?").get(sendId) as Row | null;
     return row ? toSend(row) : null;
   }
-
-  // Playbook
 
   playbook(): PlaybookVersion | null {
     const row = this.db.query("SELECT * FROM playbook_versions ORDER BY saved_at DESC, rowid DESC LIMIT 1").get() as Row | null;
@@ -665,8 +653,6 @@ export class Store {
   private toPlaybook(row: Row): PlaybookVersion {
     return { id: str(row.id), content: str(row.content), note: str(row.note), savedBy: strOrNull(row.saved_by), savedAt: str(row.saved_at) };
   }
-
-  // Edit learning
 
   addLesson(input: Omit<Lesson, "id" | "createdAt">): Lesson {
     const lesson: Lesson = { ...input, id: id(), createdAt: nowIso() };
@@ -714,8 +700,6 @@ export class Store {
   setSuggestionState(suggestionId: string, state: Suggestion["state"]) {
     this.db.query("UPDATE suggestions SET state = ? WHERE id = ?").run(state, suggestionId);
   }
-
-  // Reminders and notifications
 
   addReminder(input: { conversationId: string; dueAt: string; note: string; createdBy: string | null }): Reminder {
     const reminder: Reminder = { ...input, id: id(), doneAt: null };
@@ -776,8 +760,6 @@ export class Store {
   markNotificationsRead(userId: string) {
     this.db.query("UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL").run(nowIso(), userId);
   }
-
-  // Settings
 
   setting(key: string): string | null {
     const row = this.db.query("SELECT value FROM settings WHERE key = ?").get(key) as Row | null;
