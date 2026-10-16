@@ -485,6 +485,13 @@ export function Settings({ section }: { section: "mailboxes" | "team" | "profile
               {item.label}
             </Link>
           ))}
+          <p className="mt-auto px-2 pt-4 text-muted-foreground text-xs">
+            Replyfold is built by{" "}
+            <a href="https://cyndra.ai" target="_blank" rel="noreferrer" className="underline underline-offset-3 hover:text-foreground">
+              Cyndra
+            </a>
+            .
+          </p>
         </nav>
         <div className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
           <div className="max-w-4xl">

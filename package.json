@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Open-source support inbox where AI drafts every reply and people approve what goes out.",
   "license": "MIT",
+  "author": "Cyndra (https://cyndra.ai)",
   "type": "module",
   "private": true,
   "scripts": {

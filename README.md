@@ -5,6 +5,8 @@
 
 # Replyfold
 
+Built by [Cyndra](https://cyndra.ai).
+
 ![Every reply drafted. Nothing sent without you. Open-source support inbox for Gmail, Outlook and any IMAP mailbox.](assets/hero.png)
 
 Replyfold is a support inbox you run on your own server. It connects your team's shared mailbox, writes a draft reply for every new customer email from your playbook, and sends only what a person approves.
@@ -144,3 +146,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request, and [SECU
 ## License
 
 [MIT](LICENSE)
+
+Built by [Cyndra](https://cyndra.ai).

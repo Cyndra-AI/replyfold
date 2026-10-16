@@ -14,6 +14,13 @@ function Frame({ title, description, children }: { title: string; description: s
         <h1 className="font-medium text-lg tracking-[-0.01em]">{title}</h1>
         <p className="mt-1 mb-6 text-muted-foreground text-sm">{description}</p>
         {children}
+        <p className="mt-10 text-muted-foreground text-xs">
+          Replyfold is open source, built by{" "}
+          <a href="https://cyndra.ai" target="_blank" rel="noreferrer" className="underline underline-offset-3 hover:text-foreground">
+            Cyndra
+          </a>
+          .
+        </p>
       </div>
     </main>
   );
