@@ -119,6 +119,36 @@ describe("with the demo workspace", () => {
     expect(JSON.stringify(listed.data)).not.toContain("app-password");
   });
 
+  test("refuses a draft id that belongs to another conversation", async () => {
+    await login("jonas@fernhill.example");
+    const inbox = await h.call("GET", "/api/inbox?view=open");
+    const [first, second] = inbox.data.conversations;
+    const other = await h.call("GET", `/api/conversations/${second.id}`);
+    const result = await h.call("POST", `/api/conversations/${first.id}/send`, { body: "Hello", draftId: other.data.draft.id, key: "cross-draft-key" });
+    expect(result.status).toBe(400);
+    expect((await h.call("GET", `/api/conversations/${second.id}`)).data.draft.state).toBe("ready");
+  });
+
+  test("refuses a new draft when the team wrote last", async () => {
+    await login("jonas@fernhill.example");
+    const inbox = await h.call("GET", "/api/inbox?view=open");
+    const target = inbox.data.conversations[0];
+    const detail = await h.call("GET", `/api/conversations/${target.id}`);
+    await h.call("POST", `/api/conversations/${target.id}/send`, { body: "Hello", draftId: detail.data.draft.id, key: "send-key-0002" });
+    expect((await h.call("POST", `/api/conversations/${target.id}/draft`, { instruction: "" })).status).toBe(409);
+  });
+
+  test("search treats percent and underscore as plain text", async () => {
+    await login("jonas@fernhill.example");
+    const mailbox = h.store.listMailboxes()[0]!;
+    const conversation = h.store.createConversation({ mailboxId: mailbox.id, threadHint: "pct", subject: "Promo", customer: { name: "P", email: "p@example.com" }, at: new Date().toISOString() });
+    h.store.insertMessage({ conversationId: conversation.id, mailboxId: mailbox.id, externalId: "pct-1", direction: "inbound", from: { name: "P", email: "p@example.com" }, to: [], cc: [], subject: "Promo", text: "Is the 50% sale still on?", sentAt: new Date().toISOString(), messageIdHeader: "<pct-1@example.com>", references: [] });
+    const percent = await h.call("GET", "/api/inbox?view=all&q=50%25%20sale");
+    expect(percent.data.conversations.map((item: { subject: string }) => item.subject)).toEqual(["Promo"]);
+    expect((await h.call("GET", "/api/inbox?view=all&q=5%25")).data.conversations).toEqual([]);
+    expect((await h.call("GET", "/api/inbox?view=all&q=_")).data.conversations).toEqual([]);
+  });
+
   test("refuses a cross-site write", async () => {
     await login("jonas@fernhill.example");
     const result = await h.call("POST", "/api/logout", {}, { origin: "https://evil.example" });

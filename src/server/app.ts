@@ -73,8 +73,7 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
 
   route("POST", "/api/login", null, async ({ request }) => {
     const input = await body(request, z.object({ email: z.string().trim(), password: z.string() }));
-    const key = `${request.headers.get("x-forwarded-for") ?? "local"}:${input.email.toLowerCase()}`;
-    if (!loginLimiter.allow(key)) throw new HttpError(429, "Too many attempts. Wait 15 minutes and try again.");
+    if (!loginLimiter.allow(input.email.toLowerCase())) throw new HttpError(429, "Too many attempts. Wait 15 minutes and try again.");
     const found = store.userWithHash(input.email);
     const ok = found ? await Bun.password.verify(input.password, found.passwordHash) : false;
     if (!found || !ok) throw new HttpError(401, "The email or password is wrong.");
@@ -152,6 +151,7 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
     const input = await body(request, z.object({ instruction: z.string().max(2000).default("") }));
     const latest = store.messages(conversation.id).at(-1);
     if (!latest) throw new HttpError(400, "This conversation has no messages.");
+    if (latest.direction !== "inbound") throw new HttpError(409, "The customer has not written since the last reply.");
     const current = store.currentDraft(conversation.id);
     if (current && (current.state === "queued" || current.state === "generating")) throw new HttpError(409, "A draft is already being written.");
     if (current && current.state !== "sent") store.updateDraft(current.id, { state: "discarded", discardReason: "superseded" });
@@ -177,6 +177,7 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
       request,
       z.object({ body: z.string().trim().min(1, "Write a reply first.").max(50_000), draftId: z.string().nullable(), key: z.string().min(8).max(100) }),
     );
+    if (input.draftId && store.draft(input.draftId)?.conversationId !== conversation.id) throw new HttpError(400, "This draft belongs to another conversation.");
     const outcome = await sendReply({ store, providerFor: runtime.providerFor, user, conversationId: conversation.id, ...input });
     if (outcome.state === "sent" && input.draftId) runtime.learn(input.draftId);
     runtime.emit({ type: "conversation", conversationId: conversation.id });
@@ -408,7 +409,11 @@ export function createApp(runtime: Runtime, options: AppOptions = {}) {
         request.signal.addEventListener("abort", () => {
           unsubscribe();
           clearInterval(heartbeat);
-          controller.close();
+          try {
+            controller.close();
+          } catch {
+            // The stream may already be closed by cancel().
+          }
         });
       },
       cancel() {

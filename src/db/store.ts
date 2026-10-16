@@ -324,9 +324,9 @@ export class Store {
     const query = input.query?.trim();
     if (query) {
       where.push(
-        "(subject LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR id IN (SELECT conversation_id FROM messages WHERE text LIKE ?))",
+        "(subject LIKE ? ESCAPE '\\' OR customer_name LIKE ? ESCAPE '\\' OR customer_email LIKE ? ESCAPE '\\' OR id IN (SELECT conversation_id FROM messages WHERE text LIKE ? ESCAPE '\\'))",
       );
-      const like = `%${query.replace(/[%_]/g, (char) => `\\${char}`)}%`;
+      const like = `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
       values.push(like, like, like, like);
     }
     const sql = `SELECT * FROM conversations ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY last_message_at DESC LIMIT ${Math.min(input.limit ?? 200, 500)}`;
