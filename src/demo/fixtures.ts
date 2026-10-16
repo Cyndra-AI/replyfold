@@ -223,7 +223,7 @@ export function demoHistory(): HistoryItem[] {
       ask: template.ask,
       draft,
       sent: template.edited && index % 2 === 0 ? `Hello ${first},\n\n${template.edited}` : lightEdit,
-      daysAgo: 1 + (index % 13),
+      daysAgo: [1, 1, 2, 2, 2, 3, 4, 4, 5, 5, 5, 5, 6, 7, 8, 8, 8, 9, 10, 10, 11, 11, 11, 11, 12, 13, 13, 6, 3, 1][index]!,
       minutesToReply: 12 + ((index * 37) % 180),
       teammate: index % 4,
     };

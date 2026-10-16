@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./coss-theme.css";
+
+@source "./";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --brand: #1f5f4e;
+  --brand-soft: color-mix(in srgb, #1f5f4e 9%, white);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --ring: color-mix(in srgb, var(--brand) 55%, white);
+  --background: #ffffff;
+  --sidebar: #f6f6f4;
+  --canvas: #fbfbfa;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark {
+  --brand: #8cc2ae;
+  --brand-soft: color-mix(in srgb, #8cc2ae 12%, #121413);
+  --primary: var(--brand);
+  --primary-foreground: #0d1512;
+  --ring: color-mix(in srgb, var(--brand) 60%, black);
+  --background: #121413;
+  --sidebar: #0d0f0e;
+  --canvas: #101211;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-canvas: var(--canvas);
+  --color-sidebar: var(--sidebar);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 22%, transparent);
+  }
+}
+
+@layer components {
+  .pressable {
+    transition: transform 140ms var(--ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

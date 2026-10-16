@@ -124,7 +124,7 @@ export class Runtime {
   }
 
   async syncAll() {
-    for (const mailbox of this.store.listMailboxes()) await this.sync(mailbox.id);
+    for (const mailbox of this.store.listMailboxes()) if (mailbox.status !== "paused") await this.sync(mailbox.id);
   }
 
   /** Works through queued drafts one at a time. A second call while draining is a no-op. */
