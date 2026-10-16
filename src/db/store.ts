@@ -380,8 +380,18 @@ export class Store {
     return this.conversation(conversationId);
   }
 
-  hasMessage(mailboxId: string, externalId: string) {
-    return this.db.query("SELECT 1 FROM messages WHERE mailbox_id = ? AND external_id = ?").get(mailboxId, externalId) !== null;
+  /** True when the provider id, or a non-empty Message-ID header, is already stored for the mailbox. */
+  hasMessage(mailboxId: string, externalId: string, messageIdHeader = "") {
+    return (
+      this.db
+        .query("SELECT 1 FROM messages WHERE mailbox_id = ? AND (external_id = ? OR (? != '' AND message_id_header = ?))")
+        .get(mailboxId, externalId, messageIdHeader, messageIdHeader) !== null
+    );
+  }
+
+  messageExternalId(messageId: string) {
+    const row = this.db.query("SELECT external_id FROM messages WHERE id = ?").get(messageId) as Row | null;
+    return str(row?.external_id);
   }
 
   /** Inserts a message once per provider id. Returns null when it was already stored. */

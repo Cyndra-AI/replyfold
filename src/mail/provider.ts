@@ -32,9 +32,12 @@ export type OutgoingMail = {
   subject: string;
   text: string;
   html: string;
+  messageIdHeader: string;
   inReplyTo?: string;
   references?: string[];
   threadHint?: string | null;
+  /** Provider id of the message being answered, for providers that reply by id. */
+  replyToExternalId?: string;
 };
 
 export type SentMail = { externalId: string; messageIdHeader: string; threadHint: string | null };

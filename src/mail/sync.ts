@@ -46,7 +46,7 @@ export async function syncMailbox(input: { store: Store; mailbox: Mailbox; provi
 
   store.transaction(() => {
     for (const pulled of ordered) {
-      if (store.hasMessage(mailbox.id, pulled.externalId)) continue;
+      if (store.hasMessage(mailbox.id, pulled.externalId, pulled.messageIdHeader)) continue;
       const inbound = pulled.from.email.toLowerCase() !== own;
       const conversation = conversationFor(store, mailbox, pulled, inbound);
       const stored = store.insertMessage({

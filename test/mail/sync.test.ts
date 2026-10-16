@@ -68,6 +68,15 @@ describe("syncMailbox", () => {
     expect(store.listConversations({ view: "all" })).toHaveLength(1);
   });
 
+  test("skips a copy of a stored message that arrives under another provider id", async () => {
+    const { store, mailbox, provider } = setup([
+      { messages: [message({ externalId: "m1", messageIdHeader: "<same@mail.test>" })], cursor: "c1" },
+      { messages: [message({ externalId: "copy-in-sent", messageIdHeader: "<same@mail.test>" })], cursor: "c2" },
+    ]);
+    await syncMailbox({ store, mailbox, provider });
+    expect(await syncMailbox({ store, mailbox, provider })).toEqual({ ok: true, added: 0, draftsQueued: 0 });
+  });
+
   test("threads a reply by References when the provider gives no thread id", async () => {
     const { store, mailbox, provider } = setup([
       {
